@@ -1,0 +1,16 @@
+require('./test-editing.cjs');const {run,sandbox}=require('./test-studio.cjs');const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+let keyboardHandler;sandbox.document.addEventListener=(type,handler)=>{if(type==='keydown')keyboardHandler=handler};
+vm.runInContext(fs.readFileSync('editing-tools.js','utf8'),sandbox);
+run('state.chords=[materialize(degree(0))];state.tracks=[{instrument:"punch",notes:[{pitch:36,start:0,len:4,velocity:90}]},{instrument:"kick",notes:[{pitch:36,start:0,len:1,velocity:90}]}];activeTrack=-1;var oldPitch=state.chords[0].notes[0].pitch;transposeProject(-2)');
+assert.equal(run('state.chords[0].notes[0].pitch'),run('oldPitch-2'));assert.equal(run('tracks()[0].notes[0].pitch'),34);assert.equal(run('tracks()[1].notes[0].pitch'),36);
+run('picked=new Set(state.chords[0].notes);copyNotes();$("pastePosition").value=5;pasteNotes()');assert.equal(run('state.chords.length'),2);assert.equal(run('state.chords[1].notes.length'),3);
+run('$("undo").click()');assert.equal(run('state.chords.length'),1);
+run('activeTrack=0;picked=new Set(tracks()[0].notes);copyNotes();$("pastePosition").value=9;pasteNotes()');assert.equal(run('tracks()[0].notes[1].start'),8);
+run('tracks()[0].notes[0].pitch=0');assert.equal(run('transposeProject(-1)'),false);
+console.log('PASS global transpose excludes drums, copy/paste main lane and bass channel, undo and MIDI limits');
+run('activeTrack=0;picked=new Set(tracks()[0].notes.slice(0,1))');
+const keyEvent=code=>({code,ctrlKey:true,target:{tagName:'DIV'},preventDefault(){},stopImmediatePropagation(){}});
+keyboardHandler(keyEvent('KeyC'));run('$("pastePosition").value=13');
+const count=run('tracks()[0].notes.length');keyboardHandler(keyEvent('KeyV'));
+assert.equal(run('tracks()[0].notes.length'),count+1);assert.equal(run('tracks()[0].notes.at(-1).start'),12);
+console.log('PASS Ctrl+C/Ctrl+V event handlers');

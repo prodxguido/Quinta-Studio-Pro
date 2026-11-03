@@ -1,0 +1,2 @@
+const {contextBridge,ipcRenderer}=require('electron');
+contextBridge.exposeInMainWorld('quintaDesktop',{dragMidi:bytes=>ipcRenderer.send('drag-midi',Array.from(bytes)),checkForUpdates:()=>ipcRenderer.invoke('update-check'),downloadUpdate:()=>ipcRenderer.invoke('update-download'),installUpdate:()=>ipcRenderer.invoke('update-install'),onUpdateStatus:callback=>ipcRenderer.on('update-status',(_event,status)=>callback(status))});

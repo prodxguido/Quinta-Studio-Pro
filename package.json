@@ -1,0 +1,76 @@
+{
+  "name": "quinta-studio",
+  "version": "0.3.0",
+  "description": "QUINTA — estudio de progresiones y edición MIDI",
+  "author": "QUINTA",
+  "private": true,
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "preview": "node preview-server.cjs",
+    "dist": "electron-builder --win nsis --x64 --publish never",
+    "release": "electron-builder --win nsis --x64 --publish always",
+    "test": "node test-doubleclick.cjs && node test-inspector.cjs && node test-instruments.cjs && node test-session.cjs && node test-transport.cjs && node test-plugg.cjs && node test-workflow.cjs && node test-editing-tools.cjs && node test-refinements.cjs && node test-channel-export.cjs"
+  },
+  "build": {
+    "appId": "com.quinta.studio",
+    "productName": "QUINTA",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "workflow.js",
+      "editing-tools.js",
+      "editor-refinements.js",
+      "editor-layout.js",
+      "channel-export.js",
+      "drum-loops.js",
+      "composer.js",
+      "assets/loops/**",
+      "index.html",
+      "*.css",
+      "app.js",
+      "studio.js",
+      "session.js",
+      "harmony.js",
+      "plugg.js",
+      "instruments.js",
+      "inspector.js",
+      "transport.js",
+      "loop-editor.js",
+      "desktop/**",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "QUINTA-Portable-${version}-${arch}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "prodxguido",
+        "repo": "Quinta-Studio-Pro",
+        "releaseType": "release"
+      }
+    ],
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": false,
+      "artifactName": "QUINTA-Setup-${version}-${arch}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "45.2.1",
+    "electron-builder": "26.18.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  }
+}

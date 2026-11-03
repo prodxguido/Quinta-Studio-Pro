@@ -1,0 +1,32 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const {sandbox,run,get,Element}=require('./test-studio.cjs');
+Element.prototype.removeAttribute=function(){};
+Element.prototype.close=function(){this.open=false};
+Element.prototype.showModal=function(){this.open=true};
+sandbox.window={};
+vm.runInContext(fs.readFileSync('harmony.js','utf8'),sandbox);
+vm.runInContext(fs.readFileSync('session.js','utf8'),sandbox);
+assert.equal(run('detectHarmony([{pitch:64},{pitch:67},{pitch:72}],qualities)[0].root'),0);
+assert.equal(run('detectHarmony([{pitch:60},{pitch:64},{pitch:67},{pitch:71}],qualities)[0].q'),'maj7');
+assert.equal(run('detectHarmony([{pitch:60},{pitch:63},{pitch:67},{pitch:70},{pitch:74}],qualities)[0].q'),'m9');
+assert.equal(run('detectHarmony([{pitch:60},{pitch:61},{pitch:66}],qualities).length'),0);
+assert.equal(run('detectHarmony([{pitch:60},{pitch:64}],qualities).length'),0);
+assert.equal(run('harmonyGroups([{start:0},{start:.03},{start:4}],120).length'),2);
+run('state.chords=[{root:6,q:"Menor",d:0,inv:0,duration:4,custom:true,notes:[{pitch:60,start:0,len:1},{pitch:64,start:0,len:1},{pitch:67,start:0,len:1}]}];render()');
+assert.equal(run('state.chords[0].root'),0);assert.equal(run('state.chords[0].q'),'Mayor');
+run('$("quality").onchange({target:{value:"maj9"}})');assert.equal(run('state.chords[0].notes.length'),5);
+run('sessionButton.click()');assert.equal(run('sessionDialog.open'),true);
+const before=run('JSON.stringify(state)');get('sessionCancel').click();assert.equal(run('JSON.stringify(state)'),before);
+(async()=>{
+ sandbox.window.showSaveFilePicker=async()=>{throw Object.assign(new Error(),{name:'AbortError'})};
+ await get('sessionSave').onclick();assert.equal(run('JSON.stringify(state)'),before);
+ let written='';sandbox.window.showSaveFilePicker=async()=>({createWritable:async()=>({write:async s=>{written=s},close:async()=>{}})});
+ await get('sessionSave').onclick();assert.deepEqual(JSON.parse(written),JSON.parse(before));assert.equal(run('state.chords.length+tracks().length'),0);
+ assert.equal(run('history.length+future.length'),0);assert.equal(run('version'),null);assert.equal(run('state.tempo'),110);
+ // Test synth scheduling against an audio-graph stub; not an auditory quality test.
+ const param=()=>({value:0,setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}});
+ const node=()=>({connect(){},disconnect(){},frequency:param(),gain:param(),Q:param(),detune:param(),start(){},stop(){}});
+ sandbox.testAudio={createBiquadFilter:node,createGain:node,createOscillator:node,destination:{}};
+ run('ctx=testAudio; $("sound").value="velvet";tone(60,0,.5,90)');assert.equal(run('timers.length'),3);
+ console.log('PASS: exact recognition, inversions, sparse/unknown notes, grouping, extension editing, cancel/save failure/success, reset and synth scheduling.');
+})().catch(e=>{console.error(e);process.exitCode=1});
