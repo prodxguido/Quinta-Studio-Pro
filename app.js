@@ -41,11 +41,12 @@ render();
 const studioScript=document.createElement('script');studioScript.src='studio.js';document.body.append(studioScript);
 (() => {
  const button=document.getElementById('updateApp');
- if(!button||!window.quintaDesktop)return;
+ if(!button||typeof window==='undefined'||!window.quintaDesktop)return;
  button.hidden=false;
- let available=false;
+ let available=false,downloaded=false;
  const notify=message=>{const toast=document.getElementById('toast');if(toast){toast.textContent=message;toast.style.display='block';setTimeout(()=>toast.style.display='none',4500);}else window.alert(message);};
  button.addEventListener('click',async()=>{
+  if(downloaded){await window.quintaDesktop.installUpdate();return;}
   if(available){button.disabled=true;button.textContent='Descargando…';const r=await window.quintaDesktop.downloadUpdate();if(!r.ok){button.disabled=false;button.textContent='Actualizar';notify(r.message);}return;}
   button.disabled=true;button.textContent='Buscando…';const r=await window.quintaDesktop.checkForUpdates();
   if(!r.ok){button.disabled=false;button.textContent='Buscar actualizaciones';notify(r.message);}
@@ -55,7 +56,7 @@ const studioScript=document.createElement('script');studioScript.src='studio.js'
   if(s.channel==='available'){available=true;button.disabled=false;button.textContent=`Descargar ${s.version}`;}
   if(s.channel==='up-to-date'){button.disabled=false;button.textContent='Buscar actualizaciones';}
   if(s.channel==='progress')button.textContent=`Descargando ${s.percent}%`;
-  if(s.channel==='downloaded'){button.disabled=false;button.textContent='Reiniciar e instalar';button.onclick=()=>window.quintaDesktop.installUpdate();}
+  if(s.channel==='downloaded'){downloaded=true;button.disabled=false;button.textContent='Reiniciar e instalar';}
   if(s.channel==='error'){button.disabled=false;button.textContent='Buscar actualizaciones';notify(`No se pudo actualizar: ${s.message}`);}
  });
 })();
