@@ -1,23 +1,32 @@
-const loopAudioPanel=document.createElement('details');loopAudioPanel.className='library';loopAudioPanel.innerHTML='<summary>Loops de reguetón · audio sincronizado</summary><select id="drumLoop"><option value="">Sin loop</option></select><label>BPM original <input id="drumBpm" type="number" min="40" max="200" value="91"></label><label>Volumen <input id="drumLevel" type="range" min="0" max="100" value="65"></label><p class="hint">Resampling del motor original: tempo del proyecto / tempo original. Sin cambio automático a doble tempo. La afinación cambia con la velocidad.</p>';channels.after(loopAudioPanel);
+const loopAudioPanel=document.createElement('details');loopAudioPanel.className='library';loopAudioPanel.innerHTML='<summary>Loops de reguetón · audio sincronizado</summary><select id="drumLoop"><option value="">Sin loop</option></select><label>Volumen <input id="drumLevel" type="range" min="0" max="100" value="65"></label><p class="hint">Sigue el BPM del proyecto. Al cambiar la velocidad también cambia el tono del audio.</p>';channels.after(loopAudioPanel);
 for(let i=1;i<=8;i++)$('drumLoop').add(new Option('Reguetón '+i,String(i)));
+const afroLoopNames=['Full loop 1','Full loop 2','Full loop 3','Full loop 4','Full loop 5','Hat layer','Perc loop','Top loop 2','Top loop','Nene loop 1','Nene loop 2'];
+const afroPanel=document.createElement('details');afroPanel.className='library';afroPanel.innerHTML='<summary>Loops Afro Dancehall · audio sincronizado</summary><select id="afroLoop"><option value="">Sin loop afro</option></select><label>Volumen <input id="afroLevel" type="range" min="0" max="100" value="65"></label><p class="hint">11 loops y capas de tu colección. Siguen el BPM del proyecto; los dos «Nene» tienen una duración de origen diferente. Un loop de audio activo por vez.</p>';
+loopAudioPanel.after(afroPanel);
+afroLoopNames.forEach((name,i)=>$('afroLoop').add(new Option(name,'afro-'+(i+1))));
+const afroFiles=['full-1','full-2','full-3','full-4','full-5','hat','perc','top-2','top','nene-1','nene-2'];
+function originalBpm(id,buffer){if(id==='afro-10'||id==='afro-11')return buffer?32*60/buffer.duration:97.5;return id.startsWith('afro-')?107:91}
+function loopPath(id){return id.startsWith('afro-')?'assets/loops/afro/'+afroFiles[Number(id.slice(5))-1]+'.wav':'assets/loops/'+id+'.wav'}
+function syncLoopControls(){const afro=String(state.drumLoop||'').startsWith('afro-');$('drumLoop').value=afro?'':state.drumLoop||'';$('afroLoop').value=afro?state.drumLoop:'';$('drumLevel').value=$('afroLevel').value=(state.drumLevel??.65)*100}
 // Source files are padded to 16 beats; use their actual musical phrase lengths.
 const drumPhraseBeats={1:16,2:8,3:4,4:8,5:8,6:8,7:16,8:16};
-function drumLoopDuration(id,buffer){return Math.min(buffer.duration,drumPhraseBeats[id]*60/91)}
+function drumLoopDuration(id,buffer){return Math.min(buffer.duration,(id.startsWith('afro-')?32:drumPhraseBeats[id])*60/originalBpm(id,buffer))}
 const drumBuffers=new Map();let drumSource,drumGain;
-async function loadDrumLoop(id){if(!id)return null;if(!drumBuffers.has(id)){audio();const bytes=await (await fetch('assets/loops/'+id+'.wav')).arrayBuffer();drumBuffers.set(id,await ctx.decodeAudioData(bytes))}return drumBuffers.get(id)}
-$('drumLoop').onchange=async()=>{stop();state.drumLoop=$('drumLoop').value;render();try{await loadDrumLoop(state.drumLoop)}catch{toast('No se pudo cargar el audio.')}};
-$('drumBpm').onchange=()=>{stop();state.drumBpm=Math.max(40,Math.min(200,Number($('drumBpm').value)||91));render()};
-$('drumLevel').oninput=()=>{state.drumLevel=Number($('drumLevel').value)/100;if(drumGain)drumGain.gain.value=state.drumLevel;localStorage.setItem('quinta',JSON.stringify(state))};
+async function loadDrumLoop(id){if(!id)return null;if(!drumBuffers.has(id)){audio();const response=await fetch(loopPath(id));if(!response.ok)throw Error('Loop unavailable');drumBuffers.set(id,await ctx.decodeAudioData(await response.arrayBuffer()))}return drumBuffers.get(id)}
+$('drumLoop').onchange=async()=>{stop();state.drumLoop=$('drumLoop').value;delete state.drumBpm;syncLoopControls();render();try{await loadDrumLoop(state.drumLoop)}catch{toast('No se pudo cargar el audio.')}};
+$('afroLoop').onchange=async()=>{stop();state.drumLoop=$('afroLoop').value;delete state.drumBpm;syncLoopControls();render();try{await loadDrumLoop(state.drumLoop)}catch{toast('No se pudo cargar el audio.')}};
+$('drumLevel').oninput=$('afroLevel').oninput=e=>{state.drumLevel=Number(e.target.value)/100;syncLoopControls();if(drumGain)drumGain.gain.value=state.drumLevel;localStorage.setItem('quinta',JSON.stringify(state))};
 const stopWithDrums=stop;stop=function(){if(drumSource){try{drumSource.stop()}catch{}drumSource=null}stopWithDrums()};
 const playWithDrums=play;play=function(){
- if(!loopBeats()&&state.drumLoop&&drumBuffers.has(state.drumLoop))state.loopRegion={start:0,end:drumLoopDuration(state.drumLoop,drumBuffers.get(state.drumLoop))*(state.drumBpm||91)/60};
+ if(!loopBeats()&&state.drumLoop&&drumBuffers.has(state.drumLoop))state.loopRegion={start:0,end:drumLoopDuration(state.drumLoop,drumBuffers.get(state.drumLoop))*originalBpm(state.drumLoop,drumBuffers.get(state.drumLoop))/60};
  playWithDrums();if(!playing||!state.drumLoop)return;
  const buffer=drumBuffers.get(state.drumLoop);if(!buffer){toast('El loop aún está cargando; volvé a reproducir.');loadDrumLoop(state.drumLoop);return}
  drumSource=ctx.createBufferSource();drumGain=ctx.createGain();drumGain.gain.value=state.drumLevel??.65;
- drumSource.buffer=buffer;drumSource.loop=true;drumSource.loopStart=0;drumSource.loopEnd=drumLoopDuration(state.drumLoop,buffer);drumSource.playbackRate.value=state.tempo/(state.drumBpm||91);drumSource.connect(drumGain);drumGain.connect(ctx.destination);
- const offset=(loopRegion().start*60/(state.drumBpm||91))%drumLoopDuration(state.drumLoop,buffer);drumSource.start(started,offset);
+ const sourceBpm=originalBpm(state.drumLoop,buffer),duration=drumLoopDuration(state.drumLoop,buffer);
+ drumSource.buffer=buffer;drumSource.loop=true;drumSource.loopStart=0;drumSource.loopEnd=duration;drumSource.playbackRate.value=state.tempo/sourceBpm;drumSource.connect(drumGain);drumGain.connect(ctx.destination);
+ const offset=(loopRegion().start*60/sourceBpm)%duration;drumSource.start(started,offset);
 };
-$('drumLoop').value=state.drumLoop||'';$('drumBpm').value=state.drumBpm||91;$('drumLevel').value=(state.drumLevel??.65)*100;
+syncLoopControls();
 if(state.drumLoop)loadDrumLoop(state.drumLoop).catch(()=>toast('No se pudo cargar el loop guardado.'));
 const quickChannels=document.createElement('nav');quickChannels.className='quick-channels';quickChannels.setAttribute('aria-label','Cambiar canal');document.querySelector('aside').append(quickChannels);
 function refreshQuickChannels(){quickChannels.innerHTML='';[{name:'Acordes'},...tracks()].forEach((track,i)=>{const b=document.createElement('button');b.textContent=track.name||'Canal '+i;b.title=b.textContent;b.setAttribute('aria-pressed',String(activeTrack===i-1));b.onclick=()=>{activeTrack=i-1;picked.clear();render();fit()};quickChannels.append(b)})}

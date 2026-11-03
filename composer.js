@@ -4,20 +4,20 @@ function sourceHarmony(){
 }
 const progressionDestination=document.createElement('dialog');progressionDestination.className='session-dialog';
 progressionDestination.innerHTML='<h2>Cargar progresión de reguetón</h2><p id="progressionDestinationName"></p><p>Reemplazar cambia sólo los acordes principales y ajusta el loop a la nueva progresión. Los demás canales se conservan. Podés deshacer.</p><div class="actions"><button id="progressionReplace" class="accent">Reemplazar acordes principales</button><button id="progressionSeparate">Agregar como canal aparte</button><button id="progressionCancel">Cancelar</button></div>';
-document.body.append(progressionDestination);let pendingReggaeton=null;
-function chooseReggaetonDestination(name,degrees){pendingReggaeton={name,degrees:[...degrees]};$('progressionDestinationName').textContent=name;progressionDestination.showModal()}
+ document.body.append(progressionDestination);let pendingReggaeton=null;
+function chooseReggaetonDestination(name,degrees,style='Reguetón',mode='minor'){pendingReggaeton={name,degrees:[...degrees],style,mode};progressionDestination.querySelector('h2').textContent='Cargar progresión de '+style.toLowerCase();$('progressionDestinationName').textContent=name;progressionDestination.showModal()}
 function applyReggaetonProgression(destination){
  if(!pendingReggaeton)return;
- const {name,degrees}=pendingReggaeton;
- const chords=degrees.map(d=>materialize(degree(d,'minor')));
+ const {name,degrees,style='Reguetón',mode='minor'}=pendingReggaeton;
+ const chords=degrees.map(spec=>{const [d,q]=Array.isArray(spec)?spec:[spec,null];const c=degree(d,mode);if(q)c.q=q;return materialize(c)});
  stop();
  if(destination==='main'){
-  checkpoint();state.chords=chords;state.mode='minor';state.chordsMuted=false;
+  checkpoint();state.chords=chords;state.mode=mode;state.chordsMuted=false;
   state.loopRegion={start:0,end:chords.reduce((sum,c)=>sum+c.duration,0)};
   activeTrack=-1;selected=0;picked.clear();render();fit();
  }else{
   let offset=0;const notes=[];chords.forEach(c=>{notes.push(...c.notes.map(n=>({...n,start:n.start+offset})));offset+=c.duration});
-  newMelody('Reguetón '+name,notes);
+  newMelody(style+' '+name,notes);
  }
  pendingReggaeton=null;progressionDestination.close();
 }
@@ -49,6 +49,18 @@ const pitchedTone=tone;tone=function(p,t,len,v,instrument){
 };
 const reggaeton=document.createElement('details');reggaeton.className='library';reggaeton.innerHTML='<summary>Reguetón · progresiones para explorar</summary><p>Ejercicios originales en menor natural, no transcripciones ni garantía de hits. El dembow y la melodía también definen el resultado. <a href="https://www.berklee.edu/berklee-now/news/what-is-dembow-tracing-the-roots-of-a-global-phenomenon" target="_blank" rel="noopener">Lectura: Berklee sobre el dembow</a>.</p>';
 for(const [name,ds] of [['i–VI–III–VII',[0,5,2,6]],['i–iv–v–i',[0,3,4,0]],['VI–VII–i–i',[5,6,0,0]],['i–VII',[0,6]]]){const b=document.createElement('button');b.textContent=name;b.onclick=()=>chooseReggaetonDestination(name,ds);reggaeton.append(b)}library.after(reggaeton);render();
+const afroProgressions=[
+ ['i–VII · groove abierto',[0,6],'minor'],
+ ['i–VI · cálido',[0,5],'minor'],
+ ['i–VII–VI–VII · circular',[0,6,5,6],'minor'],
+ ['i–iv–VII–i · regreso',[0,3,6,0],'minor'],
+ ['VI–VII–i–i · subida',[5,6,0,0],'minor'],
+ ['i–VI–iv–VII · melódico',[0,5,3,6],'minor'],
+ ['I–V–vi–IV · luminoso',[0,4,5,3],'major'],
+ ['vi–IV–I–V · afro pop',[5,3,0,4],'major']
+];
+const afro=document.createElement('details');afro.className='library';afro.innerHTML='<summary>Afro Dancehall · progresiones</summary><p>Ocho puntos de partida con tríadas y recorridos de dos o cuatro acordes. El cierre se escucha al volver al primer acorde del ciclo. El groove, el bajo y la melodía dan el carácter; probá tocar los acordes en contratiempo. Si querés un color extra, agregá una séptima o novena sólo donde la melodía lo pida. <a href="https://www.native-instruments.com/blogs/blog/emotional-chord-progressions" target="_blank" rel="noopener">Referencia de armonía</a>.</p>';
+for(const [name,ds,mode] of afroProgressions){const b=document.createElement('button');b.textContent=name;b.onclick=()=>chooseReggaetonDestination(name,ds,'Afro Dancehall',mode);afro.append(b)}reggaeton.after(afro);
 // Keyboard history shortcuts do not intercept text editing.
 document.addEventListener('keydown',e=>{
  if(!(e.ctrlKey||e.metaKey)||e.altKey||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.target.isContentEditable)return;

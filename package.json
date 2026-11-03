@@ -1,6 +1,6 @@
 {
   "name": "quinta-studio",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "QUINTA — estudio de progresiones y edición MIDI",
   "author": "QUINTA",
   "private": true,
@@ -46,7 +46,8 @@
       "signAndEditExecutable": false
     },
     "portable": {
-      "artifactName": "QUINTA-Portable-${version}-${arch}.${ext}"
+      "artifactName": "QUINTA-Portable-${version}-${arch}.${ext}",
+      "useZip": true
     },
     "publish": [
       {
