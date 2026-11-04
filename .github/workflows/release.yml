@@ -25,3 +25,13 @@ jobs:
         run: npm run release -- --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Garantizar artefactos del actualizador
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -LiteralPath release -File | Where-Object {
+            $_.Name -match '^QUINTA-Setup-.*\.(exe|blockmap)$' -or $_.Name -eq 'latest.yml'
+          }
+          if (-not $files) { throw 'No se encontraron los artefactos de actualización en release/' }
+          gh release upload $env:GITHUB_REF_NAME $files.FullName --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
