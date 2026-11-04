@@ -1,6 +1,6 @@
 {
   "name": "quinta-studio",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "QUINTA — estudio de progresiones y edición MIDI",
   "author": "QUINTA",
   "private": true,
@@ -31,6 +31,7 @@
       "*.css",
       "app.js",
       "studio.js",
+      "ableton-bridge.js",
       "session.js",
       "harmony.js",
       "plugg.js",
@@ -40,6 +41,9 @@
       "loop-editor.js",
       "desktop/**",
       "package.json"
+    ],
+    "extraResources": [
+      {"from": "ableton", "to": "ableton", "filter": ["*.amxd", "*.js", "README.md"]}
     ],
     "win": {
       "target": "nsis",

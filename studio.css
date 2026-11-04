@@ -41,3 +41,5 @@ aside .vertical{display:none}
 .degree-preview-wrap>.degree{width:100%;height:100%;padding-right:42px}
 .degree-preview{position:absolute;right:8px;top:8px;width:28px;height:28px;border-radius:50%;padding:0;display:grid;place-items:center;color:var(--lime);background:var(--panel)}
 .degree-preview:hover{background:#36442b;border-color:var(--lime)}
+
+.note.muted{opacity:.24}

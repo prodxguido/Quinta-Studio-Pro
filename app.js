@@ -38,7 +38,7 @@ let restoredProject=false;
 try{let saved=JSON.parse(localStorage.getItem('quinta'));if(saved&&scales[saved.mode]&&Array.isArray(saved.chords)){state=saved;restoredProject=true}}catch{}
 if(!restoredProject)state.chords=[0,2,3,4].map(d=>materialize(degree(d)));
 render();
-const studioScript=document.createElement('script');studioScript.src='studio.js';document.body.append(studioScript);
+const studioScript=document.createElement('script');studioScript.src='studio.js';studioScript.onload=()=>{const bridge=document.createElement('script');bridge.src='ableton-bridge.js';document.body.append(bridge)};document.body.append(studioScript);
 (() => {
  const button=document.getElementById('updateApp');
  if(!button||typeof window==='undefined'||!window.quintaDesktop)return;
