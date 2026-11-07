@@ -1,16 +1,18 @@
 {
   "name": "quinta-studio",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "QUINTA — estudio de progresiones y edición MIDI",
   "author": "QUINTA",
   "private": true,
   "main": "desktop/main.cjs",
   "scripts": {
     "start": "electron .",
+    "test:audio": "electron test-sound-design.cjs",
+    "test:ableton": "node test-ableton.cjs",
     "preview": "node preview-server.cjs",
     "dist": "electron-builder --win nsis --x64 --publish never",
     "release": "electron-builder --win nsis --x64 --publish always",
-    "test": "node test-doubleclick.cjs && node test-inspector.cjs && node test-instruments.cjs && node test-session.cjs && node test-transport.cjs && node test-plugg.cjs && node test-workflow.cjs && node test-editing-tools.cjs && node test-refinements.cjs && node test-channel-export.cjs"
+    "test": "node test-doubleclick.cjs && node test-inspector.cjs && node test-instruments.cjs && node test-session.cjs && node test-transport.cjs && node test-plugg.cjs && node test-workflow.cjs && node test-editing-tools.cjs && node test-refinements.cjs && node test-channel-export.cjs && node test-random-progression.cjs && node test-project-files.cjs"
   },
   "build": {
     "appId": "com.quinta.studio",
@@ -20,6 +22,8 @@
     },
     "files": [
       "workflow.js",
+      "sound-design.js",
+      "project-save.js",
       "editing-tools.js",
       "editor-refinements.js",
       "editor-layout.js",
@@ -43,7 +47,18 @@
       "package.json"
     ],
     "extraResources": [
-      {"from": "ableton", "to": "ableton", "filter": ["*.amxd", "*.js", "README.md"]}
+      {
+        "from": "ableton",
+        "to": "ableton",
+        "filter": [
+          "*.amxd",
+          "*.adg",
+          "*.js",
+          "*.md",
+          "*.ps1",
+          "Remote Scripts/**"
+        ]
+      }
     ],
     "win": {
       "target": "nsis",
@@ -62,6 +77,7 @@
       }
     ],
     "nsis": {
+      "include": "build/installer.nsh",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,

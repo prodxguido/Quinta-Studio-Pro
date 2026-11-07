@@ -198,12 +198,25 @@
         "box": {
           "id": "quinta-label",
           "maxclass": "live.comment",
-          "text": "QUINTA Receiver · listo para enviar al Arrangement",
+          "text": "QUINTA Receiver Â· listo para enviar al Arrangement",
           "patching_rect": [
             20.0,
             20.0,
             300.0,
             25.0
+          ]
+        }
+      },
+      {
+        "box": {
+          "id": "quinta-status",
+          "maxclass": "newobj",
+          "text": "udpsend 127.0.0.1 9010",
+          "patching_rect": [
+            330.0,
+            270.0,
+            190.0,
+            22.0
           ]
         }
       }
@@ -229,6 +242,30 @@
           ],
           "destination": [
             "quinta-js",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "quinta-live",
+            0
+          ],
+          "destination": [
+            "quinta-js",
+            0
+          ]
+        }
+      },
+      {
+        "patchline": {
+          "source": [
+            "quinta-js",
+            0
+          ],
+          "destination": [
+            "quinta-status",
             0
           ]
         }

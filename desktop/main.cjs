@@ -2,9 +2,7 @@ const {app,BrowserWindow,shell,Menu,ipcMain,nativeImage}=require('electron');
 const {autoUpdater}=require('electron-updater');
 const fs=require('node:fs');
 const path=require('node:path');
-const dgram=require('node:dgram');
-function oscString(value){const bytes=Buffer.from(String(value)+'\0');return Buffer.concat([bytes,Buffer.alloc((4-bytes.length%4)%4)])}
-function quintaPacket(id,index,total,part){const n=Buffer.alloc(8);n.writeInt32BE(index,0);n.writeInt32BE(total,4);return Buffer.concat([oscString('/quinta'),oscString(',siis'),oscString(id),n,oscString(part)])}
+const {sendToLive}=require('./live-transport.cjs');
 app.setAppUserModelId('com.quinta.studio');
 function createWindow(){
  const win=new BrowserWindow({width:1440,height:940,minWidth:900,minHeight:650,backgroundColor:'#141615',title:'QUINTA',autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true,backgroundThrottling:false}});
@@ -14,19 +12,9 @@ function createWindow(){
  win.webContents.session.setPermissionRequestHandler((contents,permission,callback)=>callback(false));
  win.loadFile(path.join(__dirname,'..','index.html'));
 }
+require('./project-files.cjs')(ipcMain,app);
 app.whenReady().then(createWindow);
-ipcMain.handle('send-to-live',async(_event,payload)=>{
- if(!payload||payload.protocol!=='quinta-live-v1'||!Array.isArray(payload.tracks)||payload.tracks.length>128)throw new Error('Proyecto QUINTA inválido.');
- const data=encodeURIComponent(JSON.stringify(payload));if(data.length>4000000)throw new Error('El proyecto supera el tamaño de envío local.');
- const chunks=data.match(/.{1,512}/g)||[];const id=Date.now().toString(36);
- const socket=dgram.createSocket('udp4');
- try{for(let i=0;i<chunks.length;i++){
-  const message=quintaPacket(id,i,chunks.length,chunks[i]);
-  await new Promise((resolve,reject)=>socket.send(message,9009,'127.0.0.1',error=>error?reject(error):resolve()));
-  await new Promise(resolve=>setTimeout(resolve,2));
- }}finally{socket.close()}
- return {ok:true,bytes:data.length,message:'Proyecto enviado. Revisá QUINTA Receiver en Live.'};
-});
+ipcMain.handle('send-to-live',(_event,payload)=>sendToLive(payload));
 autoUpdater.autoDownload=false;
 autoUpdater.autoInstallOnAppQuit=false;
 let updateState='idle';

@@ -123,3 +123,14 @@ const transportScript=document.createElement('script');transportScript.src='tran
 transportScript.onload=()=>{const loopScript=document.createElement('script');loopScript.src='loop-editor.js';document.body.append(loopScript)};
 const harmonyScript=document.createElement('script');harmonyScript.src='harmony.js';harmonyScript.onload=()=>{const sessionScript=document.createElement('script');sessionScript.src='session.js';document.body.append(sessionScript)};document.body.append(harmonyScript);
 const pluggStyle=document.createElement('style');pluggStyle.textContent='.plugg-settings{display:flex;flex-wrap:wrap;gap:18px;padding:22px 0;align-items:end}.plugg-settings label{min-width:140px}.plugg-settings input{display:block;width:150px;accent-color:#a1e5ff}.plugg-settings output{color:#a1e5ff}.plugg-lab summary{cursor:pointer}.plugg-lab>details>summary h1{display:inline-block;margin-left:12px}.plugg-lab>details>.lesson{margin-top:20px}.plugg-lab a{color:#a1e5ff}.plugg-lab .lesson-grid{margin:20px 0}';document.head.append(pluggStyle);
+// Random four-bar progression: filter complete templates by the actual diatonic triads.
+const randomProgressionTemplates=[[0,4,5,3],[0,5,3,4],[5,3,0,4],[0,3,5,4],[0,2,3,4],[5,4,3,0],[0,5,2,6],[0,6,5,6],[5,6,0,0],[0,3,4,0],[0,1,4,0],[0,5,1,4]];
+let lastRandomProgression=null;
+function generateRandomProgression(templates=randomProgressionTemplates){
+ const candidates=templates.map(degrees=>({degrees,chords:degrees.map(d=>degree(d,state.mode))})).filter(x=>x.chords.every(c=>c.q==='Mayor'||c.q==='Menor'));
+ const available=candidates.filter(x=>x.degrees.join(',')!==lastRandomProgression);
+ if(!available.length){toast('No hay otra plantilla compatible con esta escala.');return false}
+ const choice=available[Math.floor(Math.random()*available.length)],chords=choice.chords.map(c=>materialize(c));
+ stop();checkpoint();state.chords=chords;state.loopRegion={start:0,end:16};activeTrack=-1;selected=0;picked.clear();lastRandomProgression=choice.degrees.join(',');render();fit();return true;
+}
+$('randomProgression').onclick=()=>generateRandomProgression();

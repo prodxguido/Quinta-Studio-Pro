@@ -40,7 +40,7 @@ bassButton.onclick=()=>composeChannel('bass');
 const optionsBeforeDrums=instrumentOptions;instrumentOptions=function(){return [...optionsBeforeDrums(),...['hat','openhat','clap','snare','kick'].map(k=>[k,'Drums · '+k])]};
 const pitchedTone=tone;tone=function(p,t,len,v,instrument){
  if(!['hat','openhat','clap','snare','kick'].includes(instrument))return pitchedTone(p,t,len,v,instrument);
- const gain=ctx.createGain(),duration=instrument==='openhat'?.38:instrument==='hat'?.04:instrument==='kick'?.16:.12;gain.connect(ctx.destination);
+ const gain=ctx.createGain(),duration=instrument==='openhat'?.38:instrument==='hat'?.04:instrument==='kick'?.16:.12;gain.connect(voiceOutput());
  gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(.16*(v||90)/127,t+.002);gain.gain.exponentialRampToValueAtTime(.0001,t+duration);
  let source,filter;if(instrument==='kick'){source=ctx.createOscillator();source.frequency.setValueAtTime(145,t);source.frequency.exponentialRampToValueAtTime(48,t+.06);source.connect(gain)}else{
  source=ctx.createBufferSource();const buffer=ctx.createBuffer(1,Math.ceil(ctx.sampleRate*duration),ctx.sampleRate),data=buffer.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;source.buffer=buffer;filter=ctx.createBiquadFilter();filter.type=['hat','openhat'].includes(instrument)?'highpass':'bandpass';filter.frequency.value=['hat','openhat'].includes(instrument)?7500:instrument==='clap'?1500:2500;source.connect(filter);filter.connect(gain);

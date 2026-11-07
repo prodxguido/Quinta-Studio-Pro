@@ -8,6 +8,8 @@ function quintaArrangementPayload(){
 }
 sendLiveButton.onclick=async()=>{
  if(!window.quintaDesktop?.sendToLive){toast('Abrí QUINTA con el lanzador de escritorio para enviar a Ableton.');return}
+ sendLiveButton.disabled=true;
  try{const result=await window.quintaDesktop.sendToLive(quintaArrangementPayload());toast(result.message)}
  catch(error){toast('No se pudo enviar: '+error.message)}
+ finally{sendLiveButton.disabled=false}
 };

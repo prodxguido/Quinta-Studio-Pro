@@ -35,3 +35,6 @@ render();
 const drumScript=document.createElement('script');drumScript.src='drum-loops.js';document.body.append(drumScript);
 const composerScript=document.createElement('script');composerScript.src='composer.js';document.body.append(composerScript);
 const editingScript=document.createElement('script');editingScript.src='editing-tools.js';document.body.append(editingScript);
+
+composerScript.onload=()=>{const design=document.createElement('script');design.src='sound-design.js';document.body.append(design)};
+const projectSaveScript=document.createElement('script');projectSaveScript.src='project-save.js';document.body.append(projectSaveScript);

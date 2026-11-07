@@ -35,7 +35,7 @@ tone=function(p,t,len,v=90,instrument){
  filter.type='lowpass';filter.Q.value=.7;
  filter.frequency.setValueAtTime(preset.cutoff*(.65+.35*velocity),t);
  filter.frequency.exponentialRampToValueAtTime(Math.max(180,preset.cutoff*.25),t+Math.min(preset.decay,len));
- filter.connect(env);env.connect(ctx.destination);
+ filter.connect(env);env.connect(voiceOutput());
  const peak=.12*velocity;
  env.gain.setValueAtTime(0,t);env.gain.linearRampToValueAtTime(peak,t+.004);
  env.gain.exponentialRampToValueAtTime(Math.max(.0001,peak*preset.sustain),t+Math.max(.008,Math.min(preset.decay,len)));

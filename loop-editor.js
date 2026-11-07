@@ -18,6 +18,7 @@ $('loopFrom').onchange=$('loopTo').onchange=()=>{if(!setLoopRegion(Number($('loo
 $('loopAuto').onclick=()=>{checkpoint();delete state.loopRegion;render()};
 $('loopExtend').onclick=()=>{const r=loopRegion();setLoopRegion(r.start,r.end+4)};
 $('loopRuler').onpointerdown=e=>{
+ if(!e.target.dataset?.side){const ruler=$('loopRuler'),beat=Math.max(0,Math.min(timeline(),(e.clientX-ruler.getBoundingClientRect().left-52)/unit));if(typeof playFromBeat==='function')playFromBeat(beat);return}
  e.preventDefault();const ruler=$('loopRuler'),r=loopRegion(),side=e.target.dataset?.side;
  const time=ev=>Math.max(0,Math.round((ev.clientX-ruler.getBoundingClientRect().left-52)/unit/gridStep())*gridStep());
  const origin=time(e);let start=r.start,end=r.end;ruler.setPointerCapture(e.pointerId);

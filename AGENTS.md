@@ -1,5 +1,9 @@
 # Publicación de QUINTA
 
+## Cambios de integración QUINTA ↔ Ableton
+
+Antes de modificar el envío, el Remote Script o el dispositivo Max for Live, verificar conjuntamente ambos extremos del protocolo: dirección/puerto UDP, bytes OSC (incluido padding y tipos), nombre exacto y ubicación del preset de Live, y orden/resultado de las llamadas Live API. No declarar una causa por intuición: señalar la línea o evidencia que prueba el desajuste. Mantener las instrucciones de instalación alineadas con los archivos reales y confirmar que `create_midi_track` se usa según su retorno (Live API no garantiza que retorne el Track).
+
 ## Frase de publicación
 
 Cuando el usuario use **PUBLICAR RELEASE** como instrucción para ejecutar la publicación, tratarlo como autorización explícita para publicar el estado actual del proyecto en GitHub. No pedir confirmación adicional para los pasos habituales de versionado, commit, tag y push.

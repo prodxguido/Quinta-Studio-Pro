@@ -24,7 +24,7 @@ play=function(){
    notes.forEach(n=>{
     const time=start+n.start*beat;
     if(time<now)return;
-    tone(n.pitch,time+($('human').checked?Math.random()*.012:0),n.len*beat,$('human').checked?n.velocity-8+Math.random()*16:n.velocity,n.instrument);
+    tone(n.pitch,time+($('human').checked?Math.random()*.012:0),n.len*beat,$('human').checked?n.velocity-8+Math.random()*16:n.velocity,n.instrument,n.channel);
    });scheduled.push({index,start,voices:timers.slice(from)});
   }
   const live=scheduled.filter(c=>!c.cancelled);

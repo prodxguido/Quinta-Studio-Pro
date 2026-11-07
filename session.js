@@ -102,7 +102,7 @@ Object.entries(synthPresets).forEach(([id,p])=>$('sound').add(new Option(p.label
 const plainTone=tone;tone=function(p,t,len,v=90){
  const preset=synthPresets[$('sound').value];if(!preset)return plainTone(p,t,len,v);
  const filter=ctx.createBiquadFilter(),amp=ctx.createGain();filter.type='lowpass';filter.Q.value=.7;
- filter.frequency.setValueAtTime(preset.cutoff,t);filter.frequency.exponentialRampToValueAtTime(Math.max(250,preset.cutoff*.35),t+Math.max(.03,len));filter.connect(amp);amp.connect(ctx.destination);
+ filter.frequency.setValueAtTime(preset.cutoff,t);filter.frequency.exponentialRampToValueAtTime(Math.max(250,preset.cutoff*.35),t+Math.max(.03,len));filter.connect(amp);amp.connect(voiceOutput());
  const peak=.055*Math.max(0,Math.min(127,v))/127/preset.voices,attack=Math.min(preset.attack,len/2),end=t+len+preset.release;
  amp.gain.setValueAtTime(0,t);amp.gain.linearRampToValueAtTime(peak,t+attack);amp.gain.exponentialRampToValueAtTime(Math.max(.0001,peak*.45),t+Math.max(attack+.01,len));amp.gain.exponentialRampToValueAtTime(.0001,end);
  let remaining=preset.voices;
