@@ -11,6 +11,16 @@ const renderWithPalettePreview=render;render=function(){renderWithPalettePreview
 $('copyNotes').hidden=true;$('pasteNotes').hidden=true;$('pastePosition').closest('label').hidden=true;
 globalTools.querySelector('.hint').hidden=true;duplicateAction.hidden=true;
 $('rollwrap').before(controls);
+const gridSelector=$('grid'),transposeAmount=$('transposeAllAmount'),transposeButton=$('transposeAll');
+gridSelector.setAttribute('aria-label','Rejilla del piano roll');
+transposeButton.textContent='✓';transposeButton.title='Aplicar transposición en semitonos';transposeButton.setAttribute('aria-label','Aplicar transposición en semitonos');
+$('zoomY').closest('label').hidden=true;$('zoomX').closest('label').hidden=true;
+controls.append(gridSelector);
+const transposeTools=document.createElement('div');transposeTools.className='transpose-tools';transposeTools.append(transposeAmount.closest('label'),transposeButton);
+controls.append(transposeTools,$('selectionCount'));
+$('position').hidden=true;
+document.querySelector('.rollbar').remove();
+globalTools.style.display='none';
 $('rollwrap').addEventListener('wheel',e=>{
  if(!e.ctrlKey)return;e.preventDefault();e.stopPropagation();if(!e.deltaY)return;
  const wrap=$('rollwrap'),factor=e.deltaY<0?1.15:1/1.15;

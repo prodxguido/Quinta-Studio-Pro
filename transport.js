@@ -5,7 +5,8 @@ stop=function(){transportGeneration++;if(transportTimer!==null)clearTimeout(tran
 $('grid').onchange=()=>{gridStep();drawRoll()};
 play=function(){
  stop();const region=loopRegion();
- const notes=events().filter(n=>Number.isFinite(n.start)&&Number.isFinite(n.len)&&n.len>0&&n.start<region.end&&n.start+n.len>region.start).map(n=>({...n,start:Math.max(n.start,region.start)-region.start,len:Math.min(n.start+n.len,region.end)-Math.max(n.start,region.start)}));
+ const currentNotes=()=>events().filter(n=>Number.isFinite(n.start)&&Number.isFinite(n.len)&&n.len>0&&n.start<region.end&&n.start+n.len>region.start).map(n=>({...n,start:Math.max(n.start,region.start)-region.start,len:Math.min(n.start+n.len,region.end)-Math.max(n.start,region.start)}));
+ const notes=currentNotes();
  const beats=loopBeats();if((!notes.length&&!state.drumLoop)||!beats)return;
  audio();playing=true;$('play').textContent='■ Detener';
  const generation=transportGeneration,beat=60/state.tempo;
@@ -21,7 +22,7 @@ play=function(){
    const start=started+nextCycle*totalTime,index=nextCycle++;
    if(start+totalTime<now)continue;
    const from=timers.length;
-   notes.forEach(n=>{
+   currentNotes().forEach(n=>{
     const time=start+n.start*beat;
     if(time<now)return;
     tone(n.pitch,time+($('human').checked?Math.random()*.012:0),n.len*beat,$('human').checked?n.velocity-8+Math.random()*16:n.velocity,n.instrument,n.channel);

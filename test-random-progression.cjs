@@ -17,6 +17,11 @@ for(let key=0;key<12;key++)for(const mode of modes){
  run('$\u0028"undo"\u0029.click()');assert.equal(run('state.chords.length'),4);run('$\u0028"undo"\u0029.click()');assert.equal(run('state.chords.length'),1);run('$\u0028"redo"\u0029.click()');assert.equal(run('state.chords.length'),4);
 }
 // An empty compatible candidate set leaves both project state and history untouched.
+run('randomChordCountButton.click()');assert.equal(run('randomChordCount'),2);
+get('randomProgression').click();assert.equal(run('state.chords.length'),2);assert.equal(run('state.chords.map(c=>c.duration).join()'),'8,8');assert.equal(run('state.chords.every(c=>c.notes.every(n=>n.len===c.duration))'),true);
+run('randomChordCountButton.click()');assert.equal(run('randomChordCount'),3);
+get('randomProgression').click();assert.equal(run('state.chords.length'),3);assert.equal(run('state.chords.map(c=>c.duration).join()'),'4,4,8');
+run('randomChordCountButton.click()');assert.equal(run('randomChordCount'),4);
 run('state.key=0;state.mode="major";history=[];future=[];state.chords=[materialize(degree(0))];activeTrack=-1;render()');
 const before=run('JSON.stringify(state)'),hist=run('history.length');assert.equal(run('generateRandomProgression([])'),false);assert.equal(run('JSON.stringify(state)'),before);assert.equal(run('history.length'),hist);
 console.log('PASS random progression: 48 key/mode combinations, diatonic major/minor triads, 16 beats, MIDI bounds, preserved channels, consecutive variety and undo/redo/no-candidate behavior.');

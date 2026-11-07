@@ -19,9 +19,19 @@ app.whenReady().then(async()=>{
    stop();ctx=new OfflineAudioContext(2,44100,44100);state.tracks=[{name:'A',instrument:'neon',notes:[{pitch:60,start:0,len:1,velocity:90}],audioFX:{cutoff:500}},{name:'B',instrument:'neon',notes:[{pitch:64,start:0,len:1,velocity:90}],audioFX:{cutoff:8000}}];state.chords=[];render();
    tone(60,0,.3,90,'neon',0);tone(64,0,.3,90,'neon',1);
    if(audioBuses.get(0).input===audioBuses.get(1).input||audioBuses.get(0).input.frequency.value!==500||audioBuses.get(1).input.frequency.value!==8000)throw Error('Shared channel effects');
+   if(!audioBuses.get(0).input24||fxSettings(0).slope!==12)throw Error('Default filter slope');
+   changeFX(0,'slope',24);if(fxSettings(0).slope!==24||!document.querySelector('.channel-fx-filter select[aria-label^="Pendiente"]'))throw Error('Selectable 24 dB filter slope');
    if(events().map(n=>n.channel).join()!=='0,1')throw Error('Transport lost channel routing');
+   const liveVelocity=events()[0].velocity;state.tracks[0].volume=.25;changeChannelVolume(0,.25);if(!audioBuses.get(0).volume||events()[0].velocity!==liveVelocity)throw Error('Channel volume is still baked into note velocity');
    const before=JSON.stringify(state);rememberFX();changeFX(0,'amount',.6);const after=JSON.stringify(state);$('undo').click();if(JSON.stringify(state)!==before)throw Error('FX undo');$('redo').click();if(JSON.stringify(state)!==after)throw Error('FX redo');
-   if(document.querySelectorAll('.reverb-knob').length!==3)throw Error('Missing knobs');
+   if(document.querySelectorAll('.reverb-knob-label .reverb-knob').length!==4||document.querySelectorAll('.filter-knob-label .reverb-knob').length!==4)throw Error('Missing filter or reverb knobs');
+   if(document.querySelectorAll('.channel-fx-filter').length!==3||document.querySelectorAll('.channel-fx-reverb').length!==3)throw Error('Missing separate FX panels');
+   if(document.querySelectorAll('.channel-row.mixer-strip').length!==3||!document.querySelector('.mixer-strip .mixer-volume input[type=range]'))throw Error('Vertical mixer controls missing');
+   if(!document.querySelector('.loop-strip #drumLoop')||!document.querySelector('.loop-strip #afroLoop')||!document.querySelector('.mixer-scroll #trackList'))throw Error('Loop strip or horizontal mixer viewport missing');
+   for(const selector of ['.mixer-strip .preset-browser','.mixer-strip .channel-arp','.mixer-strip .channel-fx-filter','.mixer-strip .channel-fx-reverb']){const panel=document.querySelector(selector);panel.open=true;panel.dispatchEvent(new PointerEvent('pointerleave'));if(panel.open)throw Error('Panel stays open after pointer leaves: '+selector)}
+   if(Math.abs(cutoffPosition(2000)-.55)>.00001||Math.abs(cutoffFrequency(.55)-2000)>1)throw Error('Cutoff control scale');
+   if(getComputedStyle($('sound')).display!=='none')throw Error('Old sound selector is visible');
+   if(getComputedStyle(document.querySelector('.preset-categories')).position==='fixed'||getComputedStyle(document.querySelector('.fx-controls')).position==='fixed')throw Error('Floating controls remain fixed');
    if(document.querySelectorAll('.preset-category').length<7)throw Error('Missing categories');
    const category=document.querySelector('.preset-category');category.dispatchEvent(new PointerEvent('pointerenter'));if(!category.open)throw Error('Hover menu did not open');category.dispatchEvent(new PointerEvent('pointerleave'));if(category.open)throw Error('Hover menu did not close');
    return results;

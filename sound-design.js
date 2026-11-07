@@ -19,9 +19,9 @@ const studioVoices={
  ensemble:{name:'Ensemble · string machine',category:'Strings',wave:'sawtooth',voices:6,spread:7,attack:.35,decay:1,sustain:.75,release:1.2,cutoff:3600},
  chamber:{name:'Chamber · cuerdas oscuras sintéticas',category:'Strings',wave:'sawtooth',voices:3,spread:3,attack:.18,decay:.6,sustain:.7,release:.6,cutoff:1500}
 };
-const fxDefaults={cutoff:18000,resonance:.7,amount:0,decay:2,predelay:20,lowCut:180,highCut:8000,size:.65,attack:.02,type:'Hall'};
-function channelSettings(index){return index===-1?state:tracks()[index]}
-function fxSettings(index){const raw=channelSettings(index)?.audioFX||{},v={...fxDefaults};for(const key of Object.keys(v))if(typeof v[key]==='number'&&Number.isFinite(raw[key]))v[key]=raw[key];if(['Room','Hall','Plate','Ambient'].includes(raw.type))v.type=raw.type;return v}
+const fxDefaults={cutoff:18000,resonance:.7,slope:12,amount:0,decay:2,predelay:20,lowCut:180,highCut:8000,size:.65,attack:.02,type:'Hall'};
+function channelSettings(index){return index===-2?(state.loopMixer??={}):index===-1?state:tracks()[index]}
+function fxSettings(index){const raw=channelSettings(index)?.audioFX||{},v={...fxDefaults};for(const key of Object.keys(v))if(typeof v[key]==='number'&&Number.isFinite(raw[key]))v[key]=raw[key];v.slope=v.slope===24?24:12;if(['Room','Hall','Plate','Ambient'].includes(raw.type))v.type=raw.type;return v}
 const arpDefaults={enabled:false,rate:'1/8',steps:0,offset:0,style:'Up',gate:.8};
 const arpStyles=['Up','Down','UpDown','DownUp','Up & Down','Down & Up','Converge','Diverge','Con & Diverge','Pink Up','Pink UpDown','Thumb Up','Thumb UpDown','Play Order','Chord Trigger','Random','Random Other','Random Once'];
 const arpRates=['1/1','1/2','1/2T','1/4','1/4T','1/8','1/8T','1/16','1/16T','1/32','1/32T'];
@@ -34,17 +34,38 @@ function rememberFX(){history.push(JSON.stringify(state));future=[];if(history.l
 function changeFX(index,key,value,finish=false){
  const owner=channelSettings(index);owner.audioFX={...fxSettings(index),[key]:value};localStorage.setItem('quinta',JSON.stringify(state));
  const bus=audioBuses.get(index);if(!bus)return;
- const [input,dry,wet,pre,low,high,reverb]=bus.nodes,s=fxSettings(index),now=ctx.currentTime;
+ const [input,volume,dry,wet,pre,low,high,reverb]=bus.nodes,s=fxSettings(index),now=ctx.currentTime;
  input.frequency.setTargetAtTime(Math.max(40,Math.min(ctx.sampleRate*.45,s.cutoff)),now,.02);input.Q.setTargetAtTime(s.resonance,now,.02);
+ bus.input24.frequency.setTargetAtTime(Math.max(40,Math.min(ctx.sampleRate*.45,s.cutoff)),now,.02);bus.input24.Q.setTargetAtTime(s.resonance,now,.02);
+ if(key==='slope'){input.disconnect();input.connect(s.slope===24?bus.input24:volume)}
  wet.gain.setTargetAtTime(s.amount*.6,now,.03);pre.delayTime.setTargetAtTime(s.predelay/1000,now,.03);low.frequency.setTargetAtTime(s.lowCut,now,.02);high.frequency.setTargetAtTime(Math.max(s.lowCut+100,s.highCut),now,.02);
  if(finish&&['decay','size','attack','type'].includes(key))reverb.buffer=reverbImpulse(s);
 }
+function changeChannelVolume(index,gain){const bus=audioBuses.get(index);if(bus&&ctx)bus.volume.gain.setTargetAtTime(Math.max(0,gain),ctx.currentTime,.015)}
+// Reserve most of the cutoff travel for the frequencies used most often.
+function cutoffPosition(hz){return hz<=2000?(hz-40)/1960*.55:.55+(hz-2000)/16000*.45}
+function cutoffFrequency(position){const p=Math.max(0,Math.min(1,position));return Math.round(p<=.55?40+p/.55*1960:2000+(p-.55)/.45*16000)}
+function exactFXValue(output,index,key,min,max,read,write,paint){
+ output.title='Doble clic para escribir el valor exacto';
+ output.ondblclick=e=>{e.preventDefault();e.stopPropagation();const input=document.createElement('input');input.type='number';input.className='fx-exact-value';input.min=min;input.max=max;input.step='any';input.value=read();output.replaceWith(input);input.focus();input.select();let done=false;
+  const finish=commit=>{if(done)return;done=true;const number=Number(input.value);if(commit&&input.value.trim()!==''&&Number.isFinite(number)){const next=Math.max(min,Math.min(max,number));if(next!==read()){rememberFX();changeFX(index,key,write(next),true)}}input.replaceWith(output);paint()};
+  input.onkeydown=event=>{if(event.key==='Enter')finish(true);else if(event.key==='Escape')finish(false)};input.onblur=()=>finish(true);
+ };
+}
 function reverbKnob(index){
  const label=document.createElement('label');label.className='reverb-knob-label';label.textContent='Reverb';
- const dial=document.createElement('div'),value=document.createElement('output');dial.className='reverb-knob';dial.tabIndex=0;dial.setAttribute('role','slider');dial.setAttribute('aria-label','Cantidad de reverb del canal '+(index<0?'Acordes':tracks()[index].name));dial.setAttribute('aria-valuemin','0');dial.setAttribute('aria-valuemax','100');
- const paint=()=>{const percent=Math.round(fxSettings(index).amount*100);dial.style.setProperty('--angle',(percent*2.7-135)+'deg');dial.setAttribute('aria-valuenow',percent);value.textContent=percent+'%'};paint();
+ const dial=document.createElement('div'),value=document.createElement('output');dial.className='reverb-knob';dial.tabIndex=0;dial.setAttribute('role','slider');dial.setAttribute('aria-label','Cantidad de reverb del canal '+(index===-2?'Loops':index<0?'Acordes':tracks()[index].name));dial.setAttribute('aria-valuemin','0');dial.setAttribute('aria-valuemax','100');
+ const paint=()=>{const percent=Math.round(fxSettings(index).amount*100);dial.style.setProperty('--angle',(percent*2.7-135)+'deg');dial.setAttribute('aria-valuenow',percent);value.textContent=percent+'%'};paint();exactFXValue(value,index,'amount',0,100,()=>Math.round(fxSettings(index).amount*100),n=>n/100,paint);
  dial.onpointerdown=e=>{e.preventDefault();rememberFX();const y=e.clientY,initial=fxSettings(index).amount;dial.setPointerCapture(e.pointerId);dial.onpointermove=ev=>{changeFX(index,'amount',Math.max(0,Math.min(1,initial+(y-ev.clientY)/140)));paint()};dial.onpointerup=dial.onpointercancel=()=>{dial.onpointermove=null}};
  dial.onkeydown=e=>{if(!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();rememberFX();const next=e.key==='Home'?0:e.key==='End'?1:fxSettings(index).amount+(['ArrowUp','ArrowRight'].includes(e.key)?.01:-.01);changeFX(index,'amount',Math.max(0,Math.min(1,next)));paint()};
+ label.append(dial,value);return label;
+}
+function filterKnob(index){
+ const label=document.createElement('label');label.className='filter-knob-label';label.textContent='Filtro';
+ const dial=document.createElement('div'),value=document.createElement('output');dial.className='reverb-knob';dial.tabIndex=0;dial.setAttribute('role','slider');dial.setAttribute('aria-label','Cutoff del filtro del canal '+(index===-2?'Loops':index<0?'Acordes':tracks()[index].name));dial.setAttribute('aria-valuemin','40');dial.setAttribute('aria-valuemax','18000');
+ const paint=()=>{const hz=fxSettings(index).cutoff;dial.style.setProperty('--angle',(cutoffPosition(hz)*270-135)+'deg');dial.setAttribute('aria-valuenow',Math.round(hz));dial.setAttribute('aria-valuetext',Math.round(hz)+' Hz');value.textContent=hz>=1000?(hz/1000).toFixed(1)+' kHz':Math.round(hz)+' Hz';const slider=dial.closest('.channel-row')?.querySelector('.fx-controls input[aria-label^="Cutoff"]');if(slider){slider.value=Math.round(cutoffPosition(hz)*1000);slider.nextElementSibling.textContent=hz}};dial.paint=paint;paint();exactFXValue(value,index,'cutoff',40,18000,()=>fxSettings(index).cutoff,n=>n,paint);
+ dial.onpointerdown=e=>{e.preventDefault();rememberFX();const y=e.clientY,initial=cutoffPosition(fxSettings(index).cutoff);dial.setPointerCapture(e.pointerId);dial.onpointermove=ev=>{changeFX(index,'cutoff',cutoffFrequency(initial+(y-ev.clientY)/140));paint()};dial.onpointerup=dial.onpointercancel=()=>{dial.onpointermove=null}};
+ dial.onkeydown=e=>{if(!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();rememberFX();const next=e.key==='Home'?0:e.key==='End'?1:cutoffPosition(fxSettings(index).cutoff)+(['ArrowUp','ArrowRight'].includes(e.key)?.01:-.01);changeFX(index,'cutoff',cutoffFrequency(next));paint()};
  label.append(dial,value);return label;
 }
 function reverbImpulse(settings){
@@ -67,13 +88,16 @@ function reverbImpulse(settings){
 }
 function channelAudioOutput(){
  if(audioBuses.has(routingChannel))return audioBuses.get(routingChannel).input;
- const s=fxSettings(routingChannel),input=ctx.createBiquadFilter(),dry=ctx.createGain(),wet=ctx.createGain(),pre=ctx.createDelay(.5),low=ctx.createBiquadFilter(),high=ctx.createBiquadFilter(),reverb=ctx.createConvolver();
+ const s=fxSettings(routingChannel),input=ctx.createBiquadFilter(),input24=ctx.createBiquadFilter(),volume=ctx.createGain(),dry=ctx.createGain(),wet=ctx.createGain(),pre=ctx.createDelay(.5),low=ctx.createBiquadFilter(),high=ctx.createBiquadFilter(),reverb=ctx.createConvolver();
  input.type='lowpass';input.frequency.value=Math.max(40,Math.min(ctx.sampleRate*.45,s.cutoff));input.Q.value=Math.max(.1,Math.min(12,s.resonance));
+ input24.type='lowpass';input24.frequency.value=input.frequency.value;input24.Q.value=input.Q.value;
+ volume.gain.value=routingChannel===-2?1:routingChannel<0?state.chordVolume??1:tracks()[routingChannel]?.volume??1;
  dry.gain.value=1;wet.gain.value=Math.max(0,Math.min(1,s.amount))*.6;
  pre.delayTime.value=Math.max(0,Math.min(.5,s.predelay/1000));low.type='highpass';low.frequency.value=Math.max(20,Math.min(2000,s.lowCut));high.type='lowpass';high.frequency.value=Math.max(low.frequency.value+100,Math.min(ctx.sampleRate*.45,s.highCut));
- reverb.buffer=reverbImpulse(s);input.connect(dry);dry.connect(studioOutput());input.connect(pre);pre.connect(reverb);reverb.connect(low);low.connect(high);high.connect(wet);wet.connect(studioOutput());
- audioBuses.set(routingChannel,{input,nodes:[input,dry,wet,pre,low,high,reverb]});return input;
+ reverb.buffer=reverbImpulse(s);input.connect(s.slope===24?input24:volume);input24.connect(volume);volume.connect(dry);dry.connect(studioOutput());volume.connect(pre);pre.connect(reverb);reverb.connect(low);low.connect(high);high.connect(wet);wet.connect(studioOutput());
+ audioBuses.set(routingChannel,{input,input24,volume,nodes:[input,volume,dry,wet,pre,low,high,reverb,input24]});return input;
 }
+function loopAudioOutput(){const previous=routingChannel;routingChannel=-2;try{return channelAudioOutput()}finally{routingChannel=previous}}
 const stopBeforeSoundDesign=stop;
 stop=function(){stopBeforeSoundDesign();for(const bus of audioBuses.values())bus.nodes.forEach(n=>n.disconnect());audioBuses.clear()};
 const toneBeforeSoundDesign=tone;
@@ -98,7 +122,7 @@ tone=function(p,t,len,v=90,instrument,channel=-1){
   });
  }finally{routingChannel=previous}
 };
-events=function(){return [...(state.chordsMuted?[]:arpeggiate(baseEvents().map(n=>({...n,instrument:state.chordInstrument,channel:-1,velocity:n.velocity*(state.chordVolume??1)})),state)),...tracks().flatMap((track,index)=>track.muted?[]:arpeggiate(track.notes.map(n=>({...n,instrument:track.instrument,channel:index,velocity:n.velocity*(track.volume??1)})),track))].filter(n=>n.velocity>0)};
+events=function(){return [...(state.chordsMuted?[]:arpeggiate(baseEvents().map(n=>({...n,instrument:state.chordInstrument,channel:-1})),state)),...tracks().flatMap((track,index)=>track.muted?[]:arpeggiate(track.notes.map(n=>({...n,instrument:track.instrument,channel:index})),track))].filter(n=>n.velocity>0)};
 listen=function(n){if(previewNotes&&!n.muted){audio();tone(n.pitch,ctx.currentTime,.4,n.velocity||90,channelInstrument(),activeTrack)}};
 audition=function(c){if(playing)return;audio();c.notes.forEach(n=>tone(n.pitch,ctx.currentTime,.65,n.velocity||90,channelInstrument(),activeTrack))};
 const soundOptionsBefore=instrumentOptions;instrumentOptions=function(){return [...soundOptionsBefore(),...Object.entries(studioVoices).map(([id,p])=>[id,p.name])]};
@@ -106,13 +130,18 @@ Object.entries(studioVoices).forEach(([id,p])=>$('sound').add(new Option(p.name,
 function soundCategory(id){if(studioVoices[id])return studioVoices[id].category;if(bassPresets[id])return 'Bajos';if(['velvet'].includes(id))return 'Pads';if(id==='glass')return 'Plucks';if(['hat','openhat','clap','snare','kick'].includes(id))return 'Batería';return 'Synths'}
 let favoriteSounds;try{favoriteSounds=new Set(JSON.parse(localStorage.getItem('quinta-favorite-sounds')||'[]'))}catch{favoriteSounds=new Set()}
 let presetPreview=false;
+function dismissMixerPanel(panel){
+ panel.addEventListener('pointerleave',()=>{panel.open=false});
+ panel.addEventListener('toggle',()=>{if(!panel.open)return;document.querySelectorAll('.preset-browser[open],.channel-arp[open],.channel-fx[open],.loop-choice[open]').forEach(other=>{if(other!==panel)other.open=false})});
+}
 function presetMenu(value,onChoose,global=false,index=-1){
  const menu=document.createElement('details');menu.className='preset-browser';const summary=document.createElement('summary');summary.textContent=instrumentOptions().find(([id])=>id===value)?.[1]||'Sonido global';menu.append(summary);
+ dismissMixerPanel(menu);
  const panel=document.createElement('div');panel.className='preset-categories';menu.append(panel);
  const preview=document.createElement('label'),previewCheck=document.createElement('input');previewCheck.type='checkbox';previewCheck.checked=presetPreview;previewCheck.onchange=()=>{presetPreview=previewCheck.checked};preview.append(previewCheck,document.createTextNode(' Preescuchar al elegir'));panel.append(preview);
  function makeChoice(id,name){const line=document.createElement('div'),b=document.createElement('button'),star=document.createElement('button');line.className='preset-choice';b.type='button';b.textContent=name;b.setAttribute('aria-pressed',String(value===id));b.onclick=()=>{menu.open=false;onChoose(id);if(presetPreview){audio();tone(60+state.key,ctx.currentTime,.7,85,id,index)}};star.textContent=favoriteSounds.has(id)?'★':'☆';star.setAttribute('aria-label','Favorito: '+name);star.onclick=()=>{if(favoriteSounds.has(id))favoriteSounds.delete(id);else favoriteSounds.add(id);localStorage.setItem('quinta-favorite-sounds',JSON.stringify([...favoriteSounds]));star.textContent=favoriteSounds.has(id)?'★':'☆';refreshFavorites()};line.append(b,star);return line}
  function refreshFavorites(){const items=panel.querySelector('.preset-items');if(items){items.innerHTML='';instrumentOptions().filter(([id])=>favoriteSounds.has(id)).forEach(([id,name])=>items.append(makeChoice(id,name)))}}
- menu.addEventListener('toggle',()=>{if(menu.open){refreshFavorites();const r=summary.getBoundingClientRect(),popup=panel;popup.style.position='fixed';popup.style.zIndex='1000';popup.style.left=Math.max(8,Math.min(innerWidth-300,r.left))+'px';popup.style.top=Math.min(innerHeight-420,r.bottom+4)+'px'}});
+ menu.addEventListener('toggle',()=>{if(menu.open)refreshFavorites()});
  for(const category of ['Favoritos','Synths','Plucks','Bells','Bajos','Pads','Strings','Batería']){
   const group=document.createElement('details');group.className='preset-category';group.onpointerenter=()=>{group.open=true};group.onpointerleave=()=>{if(!group.contains(document.activeElement))group.open=false};const heading=document.createElement('summary');heading.textContent=category;group.append(heading);const items=document.createElement('div');items.className='preset-items';
   instrumentOptions().filter(([id])=>id&&(category==='Favoritos'?favoriteSounds.has(id):soundCategory(id)===category)).forEach(([id,name])=>items.append(makeChoice(id,name)));
@@ -127,20 +156,49 @@ channelUI=function(){
   const index=k-1,owner=channelSettings(index),selector=row.querySelector('select');
   const choose=id=>{checkpoint();if(index===-1)state.chordInstrument=id;else owner.instrument=id;render()};
   const menu=presetMenu(index===-1?state.chordInstrument||'':owner.instrument||'',choose,false,index);if(selector)selector.replaceWith(menu);else row.append(menu);
-  row.append(reverbKnob(index));const panel=document.createElement('details');panel.className='channel-fx';const heading=document.createElement('summary');heading.textContent='Filtro y reverb';panel.append(heading);
-  const arp=arpSettings(owner),arpBox=document.createElement('details');arpBox.className='channel-arp';const arpHead=document.createElement('summary');arpHead.textContent='Arpegiador MIDI';arpBox.append(arpHead);const enabled=document.createElement('input');enabled.type='checkbox';enabled.checked=arp.enabled;enabled.setAttribute('aria-label','Activar arpegiador');const enableLabel=document.createElement('label');enableLabel.append(enabled,document.createTextNode(' Activar'));arpBox.append(enableLabel);
+  row.append(filterKnob(index),reverbKnob(index));
+  const makePanel=(letter,name)=>{const panel=document.createElement('details');panel.className='channel-fx channel-fx-'+name;dismissMixerPanel(panel);const heading=document.createElement('summary');heading.textContent=name.toUpperCase();heading.title=name;heading.setAttribute('aria-label','Opciones de '+name+' del canal '+(index<0?'Acordes':owner.name));panel.append(heading);const controls=document.createElement('div');controls.className='fx-controls';panel.append(controls);return {panel,controls}};
+  const filterPanel=makePanel('F','filtro'),reverbPanel=makePanel('R','reverb');
+  const arp=arpSettings(owner),arpBox=document.createElement('details');arpBox.className='channel-arp';dismissMixerPanel(arpBox);const arpHead=document.createElement('summary');arpHead.textContent='ARP';arpHead.setAttribute('aria-label','Opciones del arpegiador MIDI');arpBox.append(arpHead);const enabled=document.createElement('input');enabled.type='checkbox';enabled.checked=arp.enabled;enabled.setAttribute('aria-label','Activar arpegiador');const enableLabel=document.createElement('label');enableLabel.append(enabled,document.createTextNode(' Activar'));arpBox.append(enableLabel);
   const arpControl=(label,tag,options,key)=>{const l=document.createElement('label');l.textContent=label;const el=document.createElement(tag);if(tag==='select')options.forEach(v=>el.add(new Option(v,v)));else{el.type='number';el.min=options[0];el.max=options[1];el.step=options[2]}el.value=arp[key];el.onchange=()=>{checkpoint();owner.arpeggiator={...arpSettings(owner),[key]:tag==='select'?el.value:Number(el.value)};render()};l.append(el);arpBox.append(l)};
-  enabled.onchange=()=>{checkpoint();owner.arpeggiator={...arpSettings(owner),enabled:enabled.checked};render()};arpControl('Rate','select',arpRates,'rate');arpControl('Steps','input',[0,32,1],'steps');arpControl('Offset · pasos','input',[-32,32,1],'offset');arpControl('Gate','input',[.05,1,.05],'gate');arpControl('Style','select',arpStyles,'style');row.append(arpBox);
+  enabled.onchange=()=>{checkpoint();owner.arpeggiator={...arpSettings(owner),enabled:enabled.checked};render()};arpControl('Rate','select',arpRates,'rate');arpControl('Steps','input',[0,32,1],'steps');arpControl('Offset · pasos','input',[-32,32,1],'offset');arpControl('Gate','input',[.05,1,.05],'gate');arpControl('Style','select',arpStyles,'style');row.append(arpBox,filterPanel.panel,reverbPanel.panel);
   const values=fxSettings(index);
+  const slopeLabel=document.createElement('label'),slopeSelect=document.createElement('select');slopeLabel.textContent='Pendiente';slopeSelect.setAttribute('aria-label','Pendiente del filtro del canal '+(index<0?'Acordes':owner.name));[[12,'12 dB/oct'],[24,'24 dB/oct']].forEach(([value,text])=>slopeSelect.add(new Option(text,String(value))));slopeSelect.value=String(values.slope);slopeSelect.onchange=()=>{rememberFX();changeFX(index,'slope',Number(slopeSelect.value))};slopeLabel.append(slopeSelect);filterPanel.controls.append(slopeLabel);
   for(const [key,label,min,max,step] of [['cutoff','Cutoff · Hz',40,18000,10],['resonance','Resonancia',.1,12,.1],['decay','Decay · s',.2,8,.1],['predelay','Predelay · ms',0,500,1],['lowCut','Low cut · Hz',20,2000,10],['highCut','High cut · Hz',1000,18000,100],['size','Tamaño',.1,1,.01],['attack','Ataque · s',0,1,.01]]){
-   const labelEl=document.createElement('label'),input=document.createElement('input'),output=document.createElement('output');labelEl.textContent=label;input.type='range';input.min=min;input.max=max;input.step=step;input.value=values[key];input.setAttribute('aria-label',label+' del canal '+(k===0?'Acordes':owner.name));output.textContent=input.value;
-   let changing=false;input.oninput=()=>{if(!changing){rememberFX();changing=true}output.textContent=input.value;changeFX(index,key,Number(input.value))};input.onchange=()=>{if(!changing)rememberFX();changeFX(index,key,Number(input.value),true);changing=false};labelEl.append(input,output);panel.append(labelEl);
+   const controls=(key==='cutoff'||key==='resonance'?filterPanel:reverbPanel).controls;
+   const labelEl=document.createElement('label'),input=document.createElement('input'),output=document.createElement('output');labelEl.textContent=label;input.type='range';input.min=key==='cutoff'?0:min;input.max=key==='cutoff'?1000:max;input.step=key==='cutoff'?1:step;input.value=key==='cutoff'?Math.round(cutoffPosition(values[key])*1000):values[key];input.setAttribute('aria-label',label+' del canal '+(k===0?'Acordes':owner.name));output.textContent=values[key];
+   const paint=()=>{const value=fxSettings(index)[key];input.value=key==='cutoff'?Math.round(cutoffPosition(value)*1000):value;output.textContent=value;if(key==='cutoff')row.querySelector('.filter-knob-label .reverb-knob')?.paint()};
+   let changing=false;input.oninput=()=>{if(!changing){rememberFX();changing=true}changeFX(index,key,key==='cutoff'?cutoffFrequency(Number(input.value)/1000):Number(input.value));paint()};input.onchange=()=>{if(!changing)rememberFX();changeFX(index,key,key==='cutoff'?cutoffFrequency(Number(input.value)/1000):Number(input.value),true);changing=false;paint()};labelEl.append(input,output);controls.append(labelEl);exactFXValue(output,index,key,min,max,()=>fxSettings(index)[key],n=>n,paint);
   }
-  const label=document.createElement('label');label.textContent='Tipo de reverb';const type=document.createElement('select');type.setAttribute('aria-label','Tipo de reverb');['Room','Hall','Plate','Ambient'].forEach(name=>type.add(new Option(name,name)));type.value=values.type;type.onchange=()=>{rememberFX();changeFX(index,'type',type.value,true)};label.append(type);panel.append(label);row.append(panel);
-  heading.onclick=e=>{e.preventDefault();panel.open=!panel.open;if(panel.open){const r=heading.getBoundingClientRect();panel.style.position='fixed';panel.style.zIndex='1000';panel.style.width='min(560px,calc(100vw - 32px))';panel.style.left=Math.max(8,Math.min(innerWidth-580,r.left))+'px';panel.style.top=Math.max(8,Math.min(innerHeight-360,r.bottom+4))+'px'}};
+  const label=document.createElement('label');label.textContent='Tipo de reverb';const type=document.createElement('select');type.setAttribute('aria-label','Tipo de reverb');['Room','Hall','Plate','Ambient'].forEach(name=>type.add(new Option(name,name)));type.value=values.type;type.onchange=()=>{rememberFX();changeFX(index,'type',type.value,true)};label.append(type);reverbPanel.controls.append(label);
+  const arpControls=document.createElement('div');arpControls.className='arp-controls';while(arpHead.nextSibling)arpControls.append(arpHead.nextSibling);arpBox.append(arpControls);
+  const header=row.querySelector(':scope > .channel-select'),mute=row.querySelector(':scope > button[aria-label^="Silenciar"],:scope > button[aria-label^="Activar"]'),rename=row.querySelector(':scope > button:not(.channel-select):not(.channel-delete):not([aria-label])'),renameInput=row.querySelector(':scope > input[hidden]'),remove=row.querySelector(':scope > .channel-delete'),volume=row.querySelector(':scope > .mixer-volume');
+  const knobs=document.createElement('div');knobs.className='mixer-knobs';knobs.append(row.querySelector('.filter-knob-label'),row.querySelector('.reverb-knob-label'));
+  const actions=document.createElement('div');actions.className='mixer-actions';actions.append(mute);if(rename)actions.append(rename);if(renameInput)actions.append(renameInput);actions.append(remove);
+  row.classList.add('mixer-strip');row.replaceChildren(header,menu,arpBox,filterPanel.panel,reverbPanel.panel,knobs,volume,actions);
  });
 };
 const globalMenu=presetMenu(state.sound||$('sound').value,id=>{checkpoint();state.sound=id;$('sound').value=id;globalMenu.querySelector('summary').textContent=instrumentOptions().find(([key])=>key===id)[1];render()},true);
 $('sound').hidden=true;$('sound').after(globalMenu);
 const renderBeforeSoundDesign=render;render=function(){renderBeforeSoundDesign();const id=state.sound||'triangle';$('sound').value=id;globalMenu.querySelector('summary').textContent=instrumentOptions().find(([key])=>key===id)?.[1]||id};
 const soundStyle=document.createElement('link');soundStyle.rel='stylesheet';soundStyle.href='sound-design.css';document.head.append(soundStyle);render();
+const mixerStyle=document.createElement('link');mixerStyle.rel='stylesheet';mixerStyle.href='mixer.css';document.head.append(mixerStyle);
+function setupLoopMixer(){
+ if(!document.getElementById('drumLoop')||!document.getElementById('afroLoop')||typeof regBassTools==='undefined'){setTimeout(setupLoopMixer,50);return}
+const mixerFrame=document.createElement('div'),mixerScroll=document.createElement('div'),loopStrip=document.createElement('div');
+mixerFrame.className='mixer-frame';mixerScroll.className='mixer-scroll';loopStrip.className='loop-strip mixer-strip';
+$('trackList').before(mixerFrame);mixerFrame.append(loopStrip,mixerScroll);mixerScroll.append($('trackList'));
+const loopHeader=document.createElement('div');loopHeader.className='loop-strip-header';loopHeader.textContent='LOOPS';loopStrip.append(loopHeader);
+for(const [name,id] of [['REGUETÓN','drumLoop'],['AFRO','afroLoop']]){
+ const choice=document.createElement('details'),heading=document.createElement('summary'),popup=document.createElement('div'),selector=$(id);choice.className='loop-choice';heading.textContent=name;popup.className='loop-choice-popup';popup.append(selector);choice.append(heading,popup);dismissMixerPanel(choice);selector.addEventListener('change',()=>{choice.open=false});loopStrip.append(choice);
+}
+for(let i=0;i<2;i++){const slot=document.createElement('button');slot.className='loop-future';slot.type='button';slot.disabled=true;slot.setAttribute('aria-label','Espacio para un futuro tipo de loop');loopStrip.append(slot)}
+const loopKnobs=document.createElement('div');loopKnobs.className='mixer-knobs';loopKnobs.append(filterKnob(-2),reverbKnob(-2));loopStrip.append(loopKnobs);
+const loopVolume=document.createElement('label'),loopOutput=document.createElement('output'),loopFader=document.createElement('div'),loopSlider=document.createElement('input'),loopScale=document.createElement('div');loopVolume.className='mixer-volume';loopVolume.textContent='Volumen';loopSlider.type='range';loopSlider.min='-61';loopSlider.max='6';loopSlider.step='.1';loopSlider.value=String(channelVolumeDb(state.drumLevel??.65));loopSlider.setAttribute('aria-label','Volumen de loops en dB');loopScale.className='mixer-volume-scale';loopScale.innerHTML='<span>+6</span><span>0</span><span>−12</span><span>−24</span><span>−36</span><span>−48</span><span>−∞</span>';loopFader.className='mixer-fader';loopFader.append(loopSlider,loopScale);loopVolume.append(loopOutput,loopFader);loopStrip.append(loopVolume);
+const paintLoopVolume=()=>{const db=Number(loopSlider.value);loopOutput.textContent=db<=-60.5?'−∞':(db>0?'+':'')+db.toFixed(1)+' dB';loopSlider.setAttribute('aria-valuetext',loopOutput.textContent)};paintLoopVolume();let loopVolumeChanging=false;
+const applyLoopVolume=()=>{state.drumLevel=channelVolumeGain(Number(loopSlider.value));if(drumGain&&ctx)drumGain.gain.setTargetAtTime(state.drumLevel,ctx.currentTime,.015);localStorage.setItem('quinta',JSON.stringify(state));syncLoopControls();paintLoopVolume()};
+loopSlider.oninput=()=>{if(!loopVolumeChanging){rememberFX();loopVolumeChanging=true}applyLoopVolume()};loopSlider.onchange=()=>{if(!loopVolumeChanging)rememberFX();applyLoopVolume();loopVolumeChanging=false};
+const loopFooter=document.createElement('div');loopFooter.className='loop-strip-footer';loopFooter.textContent='AUDIO';loopStrip.append(loopFooter);
+const bassToolsPanel=document.createElement('details'),bassToolsHeading=document.createElement('summary');bassToolsPanel.className='library';bassToolsHeading.textContent='Bajo de reguetón';bassToolsPanel.append(bassToolsHeading,regBassTools,regBassHelp);channels.after(bassToolsPanel);loopAudioPanel.style.display='none';afroPanel.style.display='none';
+}
+setupLoopMixer();

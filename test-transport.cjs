@@ -9,7 +9,9 @@ for(const [snap,count] of [['0.25',17],['0.5',9],['1',5]]){
  assert.equal(get('roll').children.filter(el=>el.className?.startsWith('beatline')).length,count);
 }
 run('play()');assert.equal(run('scheduledAudio.length'),3);
+const oldPitch=run('state.chords[0].notes[0].pitch');run('state.chords[0].notes[0].pitch+=1');
 run('ctx.currentTime=1.9');pump();assert.equal(run('scheduledAudio.length'),6);
+assert.equal(run('scheduledAudio[3].p'),oldPitch+1);
 assert(Math.abs(run('scheduledAudio[3].t-scheduledAudio[0].t')-2)<1e-9);
 run('ctx.currentTime=3.9');pump();assert.equal(run('scheduledAudio.length'),9);
 assert(Math.abs(run('scheduledAudio[6].t-scheduledAudio[3].t')-2)<1e-9);

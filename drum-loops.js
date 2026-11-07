@@ -23,7 +23,7 @@ const playWithDrums=play;play=function(){
  const buffer=drumBuffers.get(state.drumLoop);if(!buffer){toast('El loop aún está cargando; volvé a reproducir.');loadDrumLoop(state.drumLoop);return}
  drumSource=ctx.createBufferSource();drumGain=ctx.createGain();drumGain.gain.value=state.drumLevel??.65;
  const sourceBpm=originalBpm(state.drumLoop,buffer),duration=drumLoopDuration(state.drumLoop,buffer);
- drumSource.buffer=buffer;drumSource.loop=true;drumSource.loopStart=0;drumSource.loopEnd=duration;drumSource.playbackRate.value=state.tempo/sourceBpm;drumSource.connect(drumGain);drumGain.connect(ctx.destination);
+ drumSource.buffer=buffer;drumSource.loop=true;drumSource.loopStart=0;drumSource.loopEnd=duration;drumSource.playbackRate.value=state.tempo/sourceBpm;drumSource.connect(drumGain);drumGain.connect(typeof loopAudioOutput==='function'?loopAudioOutput():ctx.destination);
  const offset=(loopRegion().start*60/sourceBpm)%duration;drumSource.start(started,offset);
 };
 syncLoopControls();

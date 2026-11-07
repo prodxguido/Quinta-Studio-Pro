@@ -33,7 +33,7 @@ function composeChannel(kind){
  rhythm.filter(t=>t<h.len).forEach((t,i)=>notes.push({pitch:pitches[(kind==='arp'?i:[0,0,1,0][i])%pitches.length],start:h.start+t,len:Math.min(.5,h.len-t),velocity:i===0?92:78}));
  });checkpoint();tracks().push({name:kind,notes,muted:false,instrument:kind==='bass'?'punch':'glass',volume:.8});activeTrack=tracks().length-1;picked.clear();render();fit();
 }
-const createMenu=document.createElement('select');createMenu.setAttribute('aria-label','Crear canal');
+const createMenu=document.createElement('select');createMenu.id='createMenu';createMenu.setAttribute('aria-label','Crear canal');
 [['','Crear canal…'],['arp','Arpegio'],['melody','Motivo melódico'],['pedal','Pedal'],['bass','Bajo automático'],['hat','Hi-hat'],['openhat','Hi-hat abierto'],['clap','Clap'],['snare','Snare'],['kick','Kick']].forEach(([v,l])=>createMenu.add(new Option(l,v)));channels.prepend(createMenu);
 createMenu.onchange=()=>{const k=createMenu.value;if(['hat','openhat','clap','snare','kick'].includes(k)){checkpoint();tracks().push({name:k,notes:[],instrument:k});activeTrack=tracks().length-1;render()}else if(k)composeChannel(k);createMenu.value=''};
 bassButton.onclick=()=>composeChannel('bass');
@@ -67,7 +67,7 @@ document.addEventListener('keydown',e=>{
  if(!['KeyZ','KeyI','KeyY'].includes(e.code))return;
  e.preventDefault();e.stopImmediatePropagation();if(!e.repeat)$(e.code==='KeyZ'&&!e.shiftKey?'undo':'redo').click();
 },true);
-const fillMenu=document.createElement('select');fillMenu.setAttribute('aria-label','Rellenar ritmo');
+const fillMenu=document.createElement('select');fillMenu.id='fillMenu';fillMenu.setAttribute('aria-label','Rellenar ritmo');
 [['','Rellenar ritmo…'],['hat16','Hi-hat · semicorcheas'],['hat8','Hi-hat · corcheas'],['clap24','Clap · tiempos 2 y 4'],['clap3','Clap · tiempo 3 (half-time)'],['open8','Hi-hat abierto · contratiempos'],['kick4','Kick · negras']].forEach(([v,l])=>fillMenu.add(new Option(l,v)));channels.prepend(fillMenu);
 function fillDrumPattern(kind){
  const presets={hat16:['hat',42,.25,0],hat8:['hat',42,.5,0],clap24:['clap',39,2,1],clap3:['clap',39,4,2],open8:['openhat',46,1,.5],kick4:['kick',36,1,0]};
@@ -78,3 +78,4 @@ function fillDrumPattern(kind){
  track.notes=track.notes.filter(n=>n.start<start||n.start>=end);track.notes.push(...notes);picked=new Set(notes);render();fit();toast('Ritmo aplicado al tramo del loop. Podés deshacer.');
 }
 fillMenu.onchange=()=>{fillDrumPattern(fillMenu.value);fillMenu.value=''};
+const playbackFooter=document.querySelector('.editor footer');playbackFooter.querySelector('label:has(#human)').after(fillMenu,createMenu);
